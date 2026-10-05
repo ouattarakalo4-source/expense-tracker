@@ -3,7 +3,10 @@ name = "expense-tracker"
 version = "1.0.0"
 description = "Personal Expense Tracker"
 requires-python = ">=3.10"
-dependencies = ["flet[all]>=0.86.0"]
+dependencies = ["flet>=0.86.0"]
+
+[dependency-groups]
+dev = ["flet-cli>=0.86.0"]
 
 [tool.flet]
 org = "com.expensetracker"
