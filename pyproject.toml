@@ -1,0 +1,13 @@
+[project]
+name = "expense-tracker"
+version = "1.0.0"
+description = "Personal Expense Tracker"
+requires-python = ">=3.10"
+dependencies = ["flet>=0.86.0"]
+
+[tool.flet]
+org = "com.expensetracker"
+product = "Expense Tracker"
+
+[tool.flet.app]
+exclude = [".venv", "build", ".idea", "data", ".github"]

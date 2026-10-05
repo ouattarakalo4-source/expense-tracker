@@ -1,4 +1,7 @@
 __pycache__/
 *.pyc
+.idea/
+.venv/
+build/
 data/
 expenses.csv

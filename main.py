@@ -1,103 +1,99 @@
-"""Terminal menu. Run: python main.py"""
-from datetime import datetime
+"""Mobile/desktop UI (Flet). Run: flet run  |  Build: flet build apk"""
+import flet as ft
 
-from storage import export_csv, load_expenses, save_expenses
+from storage import load_expenses, save_expenses
 from tracker import ExpenseTracker
 
-MENU = """
-===== PERSONAL EXPENSE TRACKER =====
-1. Add expense
-2. View all expenses
-3. Search
-4. Delete expense
-5. Summary by category
-6. Export to CSV
-0. Quit
-"""
 
+def main(page: ft.Page):
+    page.title = "Expense Tracker"
+    page.padding = 16
+    page.scroll = ft.ScrollMode.AUTO
 
-def show(expenses):
-    if not expenses:
-        print("No expenses found.")
-        return
-    for e in sorted(expenses, key=lambda x: x.date):
-        print(e)
-
-
-def ask_amount():
-    while True:
-        try:
-            value = float(input("Amount: ").replace(",", "."))
-            if value <= 0:
-                raise ValueError
-            return value
-        except ValueError:
-            print("❌ Enter a positive number.")
-
-
-def ask_date():
-    while True:
-        raw = input("Date (YYYY-MM-DD, Enter = today): ").strip()
-        if not raw:
-            return None
-        try:
-            datetime.strptime(raw, "%Y-%m-%d")
-            return raw
-        except ValueError:
-            print("❌ Invalid date format.")
-
-
-def add_expense(tracker):
-    amount = ask_amount()
-    category = input("Category (food, transport...): ") or "other"
-    description = input("Description: ")
-    expense = tracker.add(amount, category, description, ask_date())
-    print(f"✅ Added: {expense}")
-
-
-def delete_expense(tracker):
-    try:
-        expense_id = int(input("ID to delete: "))
-    except ValueError:
-        print("❌ ID must be a number.")
-        return
-    print("✅ Deleted." if tracker.delete(expense_id) else "❌ ID not found.")
-
-
-def summary(tracker):
-    for category, total in sorted(tracker.totals_by_category().items()):
-        print(f"{category:<15} {total:>10.2f}")
-    print(f"{'TOTAL':<15} {tracker.total():>10.2f}")
-
-
-def main():
     tracker = ExpenseTracker(load_expenses())
-    while True:
-        print(MENU)
-        choice = input("Choice: ").strip()
-        if choice == "1":
-            add_expense(tracker)
-        elif choice == "2":
-            show(tracker.expenses)
-        elif choice == "3":
-            show(tracker.search(input("Keyword: ")))
-        elif choice == "4":
-            delete_expense(tracker)
-        elif choice == "5":
-            summary(tracker)
-        elif choice == "6":
-            print(f"✅ Exported to {export_csv(tracker.expenses)}")
-        elif choice == "0":
-            save_expenses(tracker.expenses)
-            print("Saved. Bye!")
-            break
-        else:
-            print("❌ Invalid choice.")
+
+    amount = ft.TextField(label="Amount", keyboard_type=ft.KeyboardType.NUMBER, expand=True)
+    category = ft.TextField(label="Category (food, transport...)", expand=True)
+    description = ft.TextField(label="Description")
+    search = ft.TextField(label="Search", prefix_icon=ft.Icons.SEARCH)
+    message = ft.Text()
+    total_text = ft.Text(size=24, weight=ft.FontWeight.BOLD)
+    categories_text = ft.Text(size=13)
+    expense_list = ft.Column(spacing=4)
+
+    def refresh():
+        keyword = (search.value or "").strip()
+        items = tracker.search(keyword) if keyword else tracker.expenses
+        items = sorted(items, key=lambda e: (e.date, e.id), reverse=True)
+
+        total_text.value = f"Total: {tracker.total():,.0f}"
+        by_category = tracker.totals_by_category()
+        categories_text.value = "  ·  ".join(
+            f"{name}: {value:,.0f}" for name, value in sorted(by_category.items())
+        ) or "No expenses yet"
+        expense_list.controls = [make_row(e) for e in items] or [ft.Text("No expenses found.")]
+        page.update()
+
+    def make_row(e):
+        return ft.Card(
+            content=ft.ListTile(
+                title=ft.Text(f"{e.description or e.category}  —  {e.amount:,.0f}"),
+                subtitle=ft.Text(f"{e.date}  ·  {e.category}"),
+                trailing=ft.IconButton(
+                    icon=ft.Icons.DELETE_OUTLINE,
+                    on_click=lambda _, expense_id=e.id: delete_expense(expense_id),
+                ),
+            )
+        )
+
+    def add_expense(_):
+        try:
+            tracker.add(
+                float((amount.value or "").replace(",", ".")),
+                category.value or "other",
+                description.value or "",
+            )
+        except ValueError:
+            message.value = "Enter a valid positive amount."
+            message.color = ft.Colors.RED
+            page.update()
+            return
         save_expenses(tracker.expenses)
+        amount.value = ""
+        description.value = ""
+        message.value = "Added ✓"
+        message.color = ft.Colors.GREEN
+        refresh()
+
+    def delete_expense(expense_id):
+        if tracker.delete(expense_id):
+            save_expenses(tracker.expenses)
+            message.value = "Deleted ✓"
+            message.color = ft.Colors.GREEN
+        refresh()
+
+    search.on_change = lambda _: refresh()
+
+    page.add(
+        ft.SafeArea(
+            content=ft.Column(
+                [
+                    ft.Text("Expense Tracker", size=28, weight=ft.FontWeight.BOLD),
+                    total_text,
+                    categories_text,
+                    ft.Divider(),
+                    ft.Row([amount, category]),
+                    description,
+                    ft.Button("Add expense", icon=ft.Icons.ADD, on_click=add_expense),
+                    message,
+                    ft.Divider(),
+                    search,
+                    expense_list,
+                ]
+            )
+        )
+    )
+    refresh()
 
 
-if __name__ == "__main__":
-    try:
-        main()
-    except (KeyboardInterrupt, EOFError):
-        print("\nBye!")
+ft.run(main)

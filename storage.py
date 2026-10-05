@@ -5,7 +5,9 @@ import os
 
 from expense import Expense
 
-DATA_FILE = os.path.join("data", "expenses.json")
+# On Android, only FLET_APP_STORAGE_DATA is writable; on PC we use ./data
+DATA_DIR = os.environ.get("FLET_APP_STORAGE_DATA") or "data"
+DATA_FILE = os.path.join(DATA_DIR, "expenses.json")
 
 
 def load_expenses(path=DATA_FILE):
